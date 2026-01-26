@@ -78,6 +78,16 @@ def ai_trading():
     news_summary = get_news_sentiment_summary(query="ADA cryptocurrency news", time_period="qdr:d", num=10)
     print(f"News summary: {news_summary}")
 
+    # Read trading strategy
+    strategy_path = "strategy/strategy_20260125.md"
+    try:
+        with open(strategy_path, "r", encoding="utf-8") as f:
+            trading_strategy = f.read()
+        print(f"Trading strategy loaded from {strategy_path}")
+    except Exception as e:
+        print(f"Warning: Could not load trading strategy: {e}")
+        trading_strategy = ""
+
     # Capture chart image
     print("Capturing chart image...")
     chart_url = f"https://upbit.com/full_chart?code=CRIX.UPBIT.KRW-{coin}"
@@ -137,9 +147,12 @@ def ai_trading():
         messages=[
             {
                 "role": "system",
-                "content": """You are a ADA coin investing expert.  Tell the user whether to buy, sell or hold at the moment based on the input data provided by user.
+                "content": f"""You are a ADA coin investing expert following a proven trading strategy. Tell the user whether to buy, sell or hold at the moment based on the input data provided by user and the trading strategy below.
 
-            Input data explanation:
+            === TRADING STRATEGY ===
+            {trading_strategy}
+
+            === INPUT DATA EXPLANATION ===
             - Current investment portfolio: includes currency, balance, locked
             - Orderbook price: includes current price and bid/ask price
             - Daily data: includes ohlcv, bollinger bands, rsi, macd, macd_signal, macd_diff, sma20, ema12
@@ -147,13 +160,29 @@ def ai_trading():
             - Fear and Greed Index data: includes value, value_classification, timestamp, time_until_update
             - Chart image: visual representation of the price chart with technical indicators (Bollinger Bands) and 1-hour timeframe
 
-            You should consider the current investment portfolio, orderbook price, daily data, hourly data, fear and greed index data, and the chart image to make a decision. Analyze the chart image for visual patterns, support/resistance levels, and technical indicator signals. Think about each data and go through them in the reasoning process. Then make decision based on the data and the reasoning process.
+            === ANALYSIS INSTRUCTIONS ===
+            You MUST analyze the data according to the trading strategy principles above. Key points to follow:
+            1. **Chart-Based Trading**: Prioritize technical chart analysis over news-driven trades. Focus on chart patterns, support/resistance levels, and market psychology visible in the chart image.
+            2. **Risk Management**: Consider the strategy's risk management rules (20-30% of capital per trade, conservative approach).
+            3. **Technical Analysis**: While the data includes complex indicators (MACD, RSI, Bollinger Bands), the strategy emphasizes basic chart analysis and market psychology. Use the chart image as the primary source for visual patterns, candlestick formations, and trend identification. Use the technical indicators as supplementary information, not as primary decision drivers.
+            4. **Market Conditions**: Assess whether the market shows clear trends (bullish or bearish) as required by the strategy.
+            5. **Entry/Exit Rules**: Apply the strategy's entry and exit rules based on chart patterns and support/resistance levels.
 
+            You should consider the current investment portfolio, orderbook price, daily data, hourly data, fear and greed index data, and the chart image to make a decision. Analyze the chart image for visual patterns, support/resistance levels, and market psychology. Think about each data point and go through them in the reasoning process according to the trading strategy. Then make decision based on the data, the strategy principles, and the reasoning process.
+
+            === OUTPUT FORMAT ===
             Provide your reasoning in the 'reason' field, your decision (buy, sell, or hold) in the 'decision' field, and a confidence_score (0-100 integer) in the 'confidence_score' field.
+
+            In the 'reason' field, you MUST:
+            - Explicitly reference which aspects of the trading strategy you are applying
+            - Explain how the chart analysis aligns with the strategy's principles
+            - Describe how you're using the data according to the strategy (e.g., focusing on chart patterns over complex indicators, considering risk management rules, etc.)
+            - Justify your decision based on the strategy's entry/exit rules and market condition assessment
 
             Confidence score rules:
             - If decision is 'hold', confidence_score must be 0
-            - If decision is 'buy' or 'sell', confidence_score should be an integer between 0 and 100 representing your confidence level (0 = no confidence, 100 = maximum confidence)"""
+            - If decision is 'buy' or 'sell', confidence_score should be an integer between 0 and 100 representing your confidence level (0 = no confidence, 100 = maximum confidence)
+            - Consider the strategy's emphasis on conservative, disciplined trading when setting confidence scores"""
             },
             {
                 "role": "user",

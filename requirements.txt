@@ -6,3 +6,4 @@ pyupbit
 ta
 selenium
 webdriver-manager
+youtube-transcript-api
