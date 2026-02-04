@@ -8,6 +8,7 @@ import base64
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Literal
+from sql_db import insert_decision
 
 load_dotenv()
 TRADE_ON = False
@@ -203,6 +204,21 @@ def ai_trading():
     print(f'Current cash: {current_cash}')
     print(f'Current ADA: {current_ada}')
 
+    # Get current price and average buy price
+    current_price = pyupbit.get_current_price(f"KRW-{coin}")
+
+    # Get average buy price from balance data
+    coin_avg_buy_price = None
+    for balance in filtered_balances:
+        if balance["currency"] == coin:
+            avg_buy_price = balance.get("avg_buy_price")
+            if avg_buy_price:
+                coin_avg_buy_price = float(avg_buy_price)
+            break
+
+    # Track trade amount for logging
+    trade_amount = None
+
     if TRADE_ON:
         # Convert confidence_score to decimal (0-100 -> 0.0-1.0)
         confidence_decimal = result.confidence_score / 100.0
@@ -211,16 +227,17 @@ def ai_trading():
             print("Executing BUY order...")
             my_krw = current_cash
             # Apply confidence_score to the trade volume
-            trade_amount = my_krw * confidence_decimal * (1 - trading_fee)
-            if trade_amount > 5000:
+            trade_amount_krw = my_krw * confidence_decimal * (1 - trading_fee)
+            if trade_amount_krw > 5000:
                 try:
-                    order_result = upbit.buy_market_order("KRW-ADA", trade_amount)
+                    order_result = upbit.buy_market_order("KRW-ADA", trade_amount_krw)
                     print(f"Buy order result: {order_result}")
-                    print(f"Traded {confidence_decimal * 100:.1f}% of available cash ({trade_amount:.0f} KRW)")
+                    print(f"Traded {confidence_decimal * 100:.1f}% of available cash ({trade_amount_krw:.0f} KRW)")
+                    trade_amount = trade_amount_krw  # Store KRW amount for buy
                 except Exception as e:
                     print(f"Buy order failed: {e}")
             else:
-                print(f"Not enough KRW after applying confidence score (minimum 5000 KRW required, got {trade_amount:.0f} KRW)")
+                print(f"Not enough KRW after applying confidence score (minimum 5000 KRW required, got {trade_amount_krw:.0f} KRW)")
 
         elif result.decision == "sell":
             print("Executing SELL order...")
@@ -234,12 +251,48 @@ def ai_trading():
                     order_result = upbit.sell_market_order("KRW-ADA", ada_to_sell)
                     print(f"Sell order result: {order_result}")
                     print(f"Traded {confidence_decimal * 100:.1f}% of available ADA ({ada_to_sell:.6f} ADA)")
+                    trade_amount = ada_to_sell  # Store coin amount for sell
                 except Exception as e:
                     print(f"Sell order failed: {e}")
             else:
                 print("Not enough ADA after applying confidence score or order value too small (minimum 5000 KRW)")
         else:
             print("HOLDING - No action taken")
+
+    # Get final balances after trade execution
+    final_cash = upbit.get_balance("KRW")
+    final_ada = upbit.get_balance(coin)
+
+    # Get updated average buy price after trade
+    all_balances_after = upbit.get_balances()
+    coin_avg_buy_price_after = None
+    for balance in all_balances_after:
+        if balance["currency"] == coin:
+            avg_buy_price = balance.get("avg_buy_price")
+            if avg_buy_price:
+                coin_avg_buy_price_after = float(avg_buy_price)
+            break
+
+    # Get current price for final logging
+    final_price = pyupbit.get_current_price(f"KRW-{coin}")
+
+    # Log the trading decision to database (after trade execution)
+    try:
+        record_id = insert_decision(
+            decision=result.decision,
+            coin_name=coin,
+            confidence_score=float(result.confidence_score),
+            reason=result.reason,
+            coin_balance=final_ada if final_ada else None,
+            krw_balance=final_cash if final_cash else None,
+            coin_avg_buy_price=coin_avg_buy_price_after if coin_avg_buy_price_after else coin_avg_buy_price,
+            coin_krw_price=final_price if final_price else current_price,
+            trade_amount=trade_amount,
+            is_real_trade=TRADE_ON
+        )
+        print(f"Trading decision logged to database with ID: {record_id}")
+    except Exception as e:
+        print(f"Warning: Failed to log trading decision to database: {e}")
 
 if __name__ == "__main__":
     ai_trading()
