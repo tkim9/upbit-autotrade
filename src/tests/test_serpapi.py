@@ -4,8 +4,12 @@ Test script for the updated news.py module using SerpAPI
 """
 
 import os
+import sys
 from dotenv import load_dotenv
-from news import get_google_news, get_crypto_news, news_to_dataframe
+
+# Add parent directory to path to import functions
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from functions.news import get_google_news, get_crypto_news, news_to_dataframe
 
 load_dotenv()
 

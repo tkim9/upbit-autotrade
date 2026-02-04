@@ -6,11 +6,17 @@ and uses OpenAI API to create an organized trading strategy document.
 """
 
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
-from yt_transcript import get_transcript_text
+
+# Add src directory to path to import functions
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+src_dir = os.path.join(project_root, 'src')
+sys.path.insert(0, src_dir)
+from functions.yt_transcript import get_transcript_text
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,8 +42,10 @@ def generate_strategy_from_videos(video_urls: list[str], output_dir: str = "stra
 
     client = OpenAI(api_key=api_key)
 
-    # Create output directory if it doesn't exist
-    Path(output_dir).mkdir(exist_ok=True)
+    # Get project root and create output directory if it doesn't exist
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    output_path = os.path.join(project_root, output_dir)
+    Path(output_path).mkdir(exist_ok=True)
 
     # Collect transcripts from all videos
     print("Fetching transcripts from YouTube videos...")
@@ -119,7 +127,7 @@ Please create a comprehensive trading strategy document based on the above trans
         # Generate filename with date
         date_str = datetime.now().strftime("%Y%m%d")
         filename = f"strategy_{date_str}.md"
-        filepath = os.path.join(output_dir, filename)
+        filepath = os.path.join(output_path, filename)
 
         # Save strategy to file
         with open(filepath, 'w', encoding='utf-8') as f:

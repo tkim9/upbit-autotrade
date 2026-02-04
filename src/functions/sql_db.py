@@ -1,8 +1,14 @@
 import sqlite3
 from datetime import datetime
 from typing import Optional
+import os
 
-DB_PATH = "trade_log.db"
+# Get the database directory (two levels up from src/functions/)
+FUNCTIONS_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR = os.path.dirname(FUNCTIONS_DIR)
+PROJECT_ROOT = os.path.dirname(SRC_DIR)
+DB_DIR = os.path.join(PROJECT_ROOT, "database")
+DB_PATH = os.path.join(DB_DIR, "trade_log.db")
 
 def init_db(db_path: str = DB_PATH) -> sqlite3.Connection:
     """

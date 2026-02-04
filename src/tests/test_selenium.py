@@ -174,12 +174,18 @@ def take_full_page_screenshot(url, output_filename=None, width=1920):
         if not output_filename.endswith('.png'):
             output_filename += '.png'
 
-        # Ensure charts directory exists
-        os.makedirs("charts", exist_ok=True)
+        # Ensure charts directory exists (relative to project root)
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        charts_dir = os.path.join(project_root, 'charts')
+        os.makedirs(charts_dir, exist_ok=True)
 
         # If output_filename doesn't start with charts/, add it
         if not output_filename.startswith("charts/"):
             output_filename = f"charts/{output_filename}"
+
+        # Make path absolute
+        if not os.path.isabs(output_filename):
+            output_filename = os.path.join(project_root, output_filename)
 
         # Take screenshot
         print("Taking screenshot...")

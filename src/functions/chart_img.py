@@ -165,21 +165,31 @@ def take_full_page_screenshot(url, output_filename=None, width=1920):
             print(f"Warning: Could not select '1시간' from menu: {e}")
             print("Continuing with screenshot anyway...")
 
+        # Ensure charts directory exists (relative to project root)
+        # Get project root (two levels up from src/utils/)
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        charts_dir = os.path.join(project_root, 'charts')
+        os.makedirs(charts_dir, exist_ok=True)
+
         # Generate filename if not provided
         if output_filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_filename = f"charts/upbit_screenshot_{timestamp}.png"
+            output_filename = os.path.join(charts_dir, f"upbit_screenshot_{timestamp}.png")
 
         # Ensure .png extension
         if not output_filename.endswith('.png'):
             output_filename += '.png'
 
-        # Ensure charts directory exists
-        os.makedirs("charts", exist_ok=True)
-
-        # If output_filename doesn't start with charts/, add it
-        if not output_filename.startswith("charts/"):
-            output_filename = f"charts/{output_filename}"
+        # Handle path: if absolute, use as-is; if relative, make it absolute
+        if os.path.isabs(output_filename):
+            # Already absolute, use as-is
+            pass
+        else:
+            # Relative path - check if it starts with charts/ or add it
+            if not output_filename.startswith("charts/"):
+                output_filename = f"charts/{output_filename}"
+            # Make path absolute
+            output_filename = os.path.join(project_root, output_filename)
 
         # Take screenshot
         print("Taking screenshot...")
@@ -199,4 +209,3 @@ def take_full_page_screenshot(url, output_filename=None, width=1920):
         if driver:
             print("Closing browser...")
             driver.quit()
-

@@ -1,14 +1,21 @@
 import os
+import sys
 from dotenv import load_dotenv
 import ta
-from fg_index import get_fear_greed_index
-from news import get_news_sentiment_summary
-from chart_img import take_full_page_screenshot
 import base64
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Literal
-from sql_db import insert_decision
+
+# Add project root to path for imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
+
+# Import from new locations
+from functions.fg_index import get_fear_greed_index
+from functions.news import get_news_sentiment_summary
+from functions.chart_img import take_full_page_screenshot
+from functions.sql_db import insert_decision
 
 load_dotenv()
 TRADE_ON = False
@@ -41,6 +48,9 @@ class TradingDecision(BaseModel):
     confidence_score: int  # 0 if hold, 0-100 if buy or sell
 
 def ai_trading():
+    # Get project root for file paths
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
     # 1. get upbit chart data - both daily and hourly
     import pyupbit
 
@@ -79,8 +89,8 @@ def ai_trading():
     news_summary = get_news_sentiment_summary(query="ADA cryptocurrency news", time_period="qdr:d", num=10)
     print(f"News summary: {news_summary}")
 
-    # Read trading strategy
-    strategy_path = "strategy/strategy_20260125.md"
+    # Read trading strategy (from project root)
+    strategy_path = os.path.join(project_root, "strategy", "strategy_20260125.md")
     try:
         with open(strategy_path, "r", encoding="utf-8") as f:
             trading_strategy = f.read()
@@ -93,9 +103,10 @@ def ai_trading():
     print("Capturing chart image...")
     chart_url = f"https://upbit.com/full_chart?code=CRIX.UPBIT.KRW-{coin}"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # Ensure charts directory exists
-    os.makedirs("charts", exist_ok=True)
-    chart_image_path = f"charts/upbit_chart_{coin}_{timestamp}.png"
+    # Ensure charts directory exists (in project root)
+    charts_dir = os.path.join(project_root, "charts")
+    os.makedirs(charts_dir, exist_ok=True)
+    chart_image_path = os.path.join(charts_dir, f"upbit_chart_{coin}_{timestamp}.png")
     try:
         chart_image_path = take_full_page_screenshot(
             url=chart_url,
