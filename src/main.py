@@ -269,6 +269,7 @@ def ai_trading():
                 print("Not enough ADA after applying confidence score or order value too small (minimum 5000 KRW)")
         else:
             print("HOLDING - No action taken")
+            trade_amount = 0  # Set trade_amount to 0 for hold decisions
 
     # Get final balances after trade execution
     final_cash = upbit.get_balance("KRW")
