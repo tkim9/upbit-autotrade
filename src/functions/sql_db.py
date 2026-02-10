@@ -36,9 +36,30 @@ def init_db(db_path: str = DB_PATH) -> sqlite3.Connection:
             coin_avg_buy_price REAL,
             coin_krw_price REAL,
             trade_amount REAL,
-            is_real_trade INTEGER
+            is_real_trade INTEGER,
+            reflection_timestamp TEXT DEFAULT '',
+            result_type TEXT DEFAULT '',
+            result_description TEXT DEFAULT '',
+            reflection TEXT DEFAULT '',
+            profit_loss REAL
         )
     """)
+
+    # Add reflection columns to existing tables (migration)
+    # Check if columns exist and add them if they don't
+    cursor.execute("PRAGMA table_info(trading_decisions)")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    if 'reflection_timestamp' not in columns:
+        cursor.execute("ALTER TABLE trading_decisions ADD COLUMN reflection_timestamp TEXT DEFAULT ''")
+    if 'result_type' not in columns:
+        cursor.execute("ALTER TABLE trading_decisions ADD COLUMN result_type TEXT DEFAULT ''")
+    if 'result_description' not in columns:
+        cursor.execute("ALTER TABLE trading_decisions ADD COLUMN result_description TEXT DEFAULT ''")
+    if 'reflection' not in columns:
+        cursor.execute("ALTER TABLE trading_decisions ADD COLUMN reflection TEXT DEFAULT ''")
+    if 'profit_loss' not in columns:
+        cursor.execute("ALTER TABLE trading_decisions ADD COLUMN profit_loss REAL")
 
     conn.commit()
     return conn
@@ -184,6 +205,103 @@ def get_all_decisions(
     conn.close()
 
     return [dict(row) for row in rows]
+
+def get_decisions_without_reflection(
+    coin_name: Optional[str] = None,
+    min_hours_old: Optional[int] = 24,
+    db_path: str = DB_PATH
+) -> list:
+    """
+    Retrieve trading decisions that don't have reflection data yet.
+
+    Args:
+        coin_name: Optional filter by coin name
+        min_hours_old: Minimum age in hours (default 24) for trade to be eligible for reflection
+        db_path: Path to the SQLite database file
+
+    Returns:
+        List of dictionaries containing decision records without reflection
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    # Calculate the cutoff timestamp
+    if min_hours_old:
+        from datetime import datetime, timedelta
+        cutoff_time = (datetime.now() - timedelta(hours=min_hours_old)).isoformat()
+
+        if coin_name:
+            cursor.execute("""
+                SELECT * FROM trading_decisions
+                WHERE coin_name = ?
+                AND (reflection = '' OR reflection IS NULL)
+                AND timestamp < ?
+                ORDER BY timestamp ASC
+            """, (coin_name, cutoff_time))
+        else:
+            cursor.execute("""
+                SELECT * FROM trading_decisions
+                WHERE (reflection = '' OR reflection IS NULL)
+                AND timestamp < ?
+                ORDER BY timestamp ASC
+            """, (cutoff_time,))
+    else:
+        if coin_name:
+            cursor.execute("""
+                SELECT * FROM trading_decisions
+                WHERE coin_name = ?
+                AND (reflection = '' OR reflection IS NULL)
+                ORDER BY timestamp ASC
+            """, (coin_name,))
+        else:
+            cursor.execute("""
+                SELECT * FROM trading_decisions
+                WHERE (reflection = '' OR reflection IS NULL)
+                ORDER BY timestamp ASC
+            """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+def update_reflection(
+    record_id: int,
+    reflection_timestamp: str,
+    result_type: str,
+    result_description: str,
+    reflection: str,
+    profit_loss: float,
+    db_path: str = DB_PATH
+) -> None:
+    """
+    Update reflection fields for a trading decision record.
+
+    Args:
+        record_id: ID of the record to update
+        reflection_timestamp: Timestamp when reflection was generated
+        result_type: Type of result ('gain', 'loss', 'neutral')
+        result_description: Description of the outcome
+        reflection: AI-generated reflection text
+        profit_loss: Percentage profit/loss as decimal (e.g., 0.10 for 10%)
+        db_path: Path to the SQLite database file
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE trading_decisions
+        SET reflection_timestamp = ?,
+            result_type = ?,
+            result_description = ?,
+            reflection = ?,
+            profit_loss = ?
+        WHERE id = ?
+    """, (reflection_timestamp, result_type, result_description, reflection, profit_loss, record_id))
+
+    conn.commit()
+    conn.close()
 
 if __name__ == "__main__":
     # Example usage

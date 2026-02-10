@@ -7,3 +7,6 @@ ta
 selenium
 webdriver-manager
 youtube-transcript-api
+pytest>=7.0.0
+pytest-mock>=3.10.0
+streamlit
