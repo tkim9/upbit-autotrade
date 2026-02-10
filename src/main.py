@@ -1,5 +1,7 @@
 import os
 import sys
+import time
+import argparse
 from dotenv import load_dotenv
 import ta
 import base64
@@ -306,5 +308,49 @@ def ai_trading():
     except Exception as e:
         print(f"Warning: Failed to log trading decision to database: {e}")
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run AI trading once or continuously at a fixed interval."
+    )
+    parser.add_argument(
+        "--loop",
+        action="store_true",
+        help="Run continuously in a while loop."
+    )
+    parser.add_argument(
+        "--interval",
+        choices=["15m", "30m", "1h", "4h"],
+        default="1h",
+        help="Loop interval for continuous mode (default: 1h)."
+    )
+    return parser.parse_args()
+
+def interval_to_seconds(interval):
+    interval_map = {
+        "15m": 15 * 60,
+        "30m": 30 * 60,
+        "1h": 60 * 60,
+        "4h": 4 * 60 * 60,
+    }
+    return interval_map[interval]
+
+def run_trading(loop=False, interval="1h"):
+    if not loop:
+        ai_trading()
+        return
+
+    wait_seconds = interval_to_seconds(interval)
+    print(f"Continuous mode enabled. Interval: {interval}")
+    try:
+        while True:
+            start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"\n[{start_time}] Starting ai_trading()")
+            ai_trading()
+            print(f"Sleeping for {interval}...")
+            time.sleep(wait_seconds)
+    except KeyboardInterrupt:
+        print("\nContinuous mode stopped by user.")
+
 if __name__ == "__main__":
-    ai_trading()
+    args = parse_args()
+    run_trading(loop=args.loop, interval=args.interval)
